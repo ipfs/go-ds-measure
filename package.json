@@ -12,11 +12,17 @@
       "hash": "QmV3NSS3A1kX5s28r7yLczhDsXzkgo65cqRgKFXYunWZmD",
       "name": "metrics",
       "version": "0.0.0"
+    },
+    {
+      "author": "jbenet",
+      "hash": "QmbzuUusHqaLLoNTDEVLcSF6vZDHZDLPC7p4bztRvvkXxU",
+      "name": "go-datastore",
+      "version": "1.0.0"
     }
   ],
   "gxVersion": "0.8.0",
   "language": "go",
   "license": "",
   "name": "go-ds-measure",
-  "version": "0.0.0"
+  "version": "1.0.1"
 }

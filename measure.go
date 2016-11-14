@@ -1,22 +1,20 @@
 // Package measure provides a Datastore wrapper that records metrics
-// using github.com/codahale/metrics.
+// using github.com/whyrusleeping/go-metrics.
 package measure
 
 import (
+	"fmt"
 	"io"
 	"time"
 
-	"github.com/codahale/metrics"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
+	"github.com/whyrusleeping/go-metrics"
 )
 
-// Histogram measurements exceeding these limits are dropped. TODO
-// maybe it would be better to cap the value? Should we keep track of
-// drops?
 const (
-	maxLatency = int64(1 * time.Second)
-	maxSize    = int64(1 << 32)
+	defaultReservoirSize = 256
+	defaultAlpha         = 0.015
 )
 
 // New wraps the datastore, providing metrics on the operations. The
@@ -28,27 +26,27 @@ func New(prefix string, ds datastore.Datastore) *measure {
 	m := &measure{
 		backend: ds,
 
-		putNum:     metrics.Counter(prefix + ".Put.num"),
-		putErr:     metrics.Counter(prefix + ".Put.err"),
-		putLatency: metrics.NewHistogram(prefix+".Put.latency", 0, maxLatency, 3),
-		putSize:    metrics.NewHistogram(prefix+".Put.size", 0, maxSize, 3),
+		putCount:   registerCounter(prefix + ".put.count"),
+		putErr:     registerCounter(prefix + ".put.err"),
+		putLatency: registerHistogram(prefix + ".put.latency"),
+		putSize:    registerHistogram(prefix + ".put.size"),
 
-		getNum:     metrics.Counter(prefix + ".Get.num"),
-		getErr:     metrics.Counter(prefix + ".Get.err"),
-		getLatency: metrics.NewHistogram(prefix+".Get.latency", 0, maxLatency, 3),
-		getSize:    metrics.NewHistogram(prefix+".Get.size", 0, maxSize, 3),
+		getCount:   registerCounter(prefix + ".get.count"),
+		getErr:     registerCounter(prefix + ".get.err"),
+		getLatency: registerHistogram(prefix + ".get.latency"),
+		getSize:    registerHistogram(prefix + ".get.size"),
 
-		hasNum:     metrics.Counter(prefix + ".Has.num"),
-		hasErr:     metrics.Counter(prefix + ".Has.err"),
-		hasLatency: metrics.NewHistogram(prefix+".Has.latency", 0, maxLatency, 3),
+		hasCount:   registerCounter(prefix + ".has.count"),
+		hasErr:     registerCounter(prefix + ".has.err"),
+		hasLatency: registerHistogram(prefix + ".has.latency"),
 
-		deleteNum:     metrics.Counter(prefix + ".Delete.num"),
-		deleteErr:     metrics.Counter(prefix + ".Delete.err"),
-		deleteLatency: metrics.NewHistogram(prefix+".Delete.latency", 0, maxLatency, 3),
+		deleteCount:   registerCounter(prefix + ".delete.count"),
+		deleteErr:     registerCounter(prefix + ".delete.err"),
+		deleteLatency: registerHistogram(prefix + ".delete.latency"),
 
-		queryNum:     metrics.Counter(prefix + ".Query.num"),
-		queryErr:     metrics.Counter(prefix + ".Query.err"),
-		queryLatency: metrics.NewHistogram(prefix+".Query.latency", 0, maxLatency, 3),
+		queryCount:   registerCounter(prefix + ".query.count"),
+		queryErr:     registerCounter(prefix + ".query.err"),
+		queryLatency: registerHistogram(prefix + ".query.latency"),
 	}
 	return m
 }
@@ -56,58 +54,83 @@ func New(prefix string, ds datastore.Datastore) *measure {
 type measure struct {
 	backend datastore.Datastore
 
-	putNum     metrics.Counter
-	putErr     metrics.Counter
-	putLatency *metrics.Histogram
-	putSize    *metrics.Histogram
+	putCount   namedCounter
+	putErr     namedCounter
+	putLatency namedHistogram
+	putSize    namedHistogram
 
-	getNum     metrics.Counter
-	getErr     metrics.Counter
-	getLatency *metrics.Histogram
-	getSize    *metrics.Histogram
+	getCount   namedCounter
+	getErr     namedCounter
+	getLatency namedHistogram
+	getSize    namedHistogram
 
-	hasNum     metrics.Counter
-	hasErr     metrics.Counter
-	hasLatency *metrics.Histogram
+	hasCount   namedCounter
+	hasErr     namedCounter
+	hasLatency namedHistogram
 
-	deleteNum     metrics.Counter
-	deleteErr     metrics.Counter
-	deleteLatency *metrics.Histogram
+	deleteCount   namedCounter
+	deleteErr     namedCounter
+	deleteLatency namedHistogram
 
-	queryNum     metrics.Counter
-	queryErr     metrics.Counter
-	queryLatency *metrics.Histogram
+	queryCount   namedCounter
+	queryErr     namedCounter
+	queryLatency namedHistogram
 }
 
-var _ datastore.Datastore = (*measure)(nil)
+type namedCounter struct {
+	name string
+	metrics.Counter
+}
 
-func recordLatency(h *metrics.Histogram, start time.Time) {
+type namedHistogram struct {
+	name string
+	metrics.Histogram
+}
+
+func registerCounter(name string) namedCounter {
+	counter := metrics.NewCounter()
+	if err := metrics.Register(name, counter); err != nil {
+		panic(fmt.Sprintf("duplicate metric \"%s\"", name))
+	}
+	return namedCounter{name, counter}
+}
+
+func registerHistogram(name string) namedHistogram {
+	s := metrics.NewExpDecaySample(defaultReservoirSize, defaultAlpha)
+	hist := metrics.NewHistogram(s)
+	if err := metrics.Register(name, hist); err != nil {
+		panic(fmt.Sprintf("duplicate metric \"%s\"", name))
+	}
+	return namedHistogram{name, hist}
+}
+
+func recordLatency(h namedHistogram, start time.Time) {
 	elapsed := time.Now().Sub(start) / time.Microsecond
-	_ = h.RecordValue(int64(elapsed))
+	h.Update(int64(elapsed))
 }
 
 func (m *measure) Put(key datastore.Key, value interface{}) error {
 	defer recordLatency(m.putLatency, time.Now())
-	m.putNum.Add()
+	m.putCount.Inc(1)
 	if b, ok := value.([]byte); ok {
-		_ = m.putSize.RecordValue(int64(len(b)))
+		m.putSize.Update(int64(len(b)))
 	}
 	err := m.backend.Put(key, value)
 	if err != nil {
-		m.putErr.Add()
+		m.putErr.Inc(1)
 	}
 	return err
 }
 
 func (m *measure) Get(key datastore.Key) (value interface{}, err error) {
 	defer recordLatency(m.getLatency, time.Now())
-	m.getNum.Add()
+	m.getCount.Inc(1)
 	value, err = m.backend.Get(key)
 	if err != nil {
-		m.getErr.Add()
+		m.getErr.Inc(1)
 	} else {
 		if b, ok := value.([]byte); ok {
-			_ = m.getSize.RecordValue(int64(len(b)))
+			m.getSize.Update(int64(len(b)))
 		}
 	}
 	return value, err
@@ -115,30 +138,30 @@ func (m *measure) Get(key datastore.Key) (value interface{}, err error) {
 
 func (m *measure) Has(key datastore.Key) (exists bool, err error) {
 	defer recordLatency(m.hasLatency, time.Now())
-	m.hasNum.Add()
+	m.hasCount.Inc(1)
 	exists, err = m.backend.Has(key)
 	if err != nil {
-		m.hasErr.Add()
+		m.hasErr.Inc(1)
 	}
 	return exists, err
 }
 
 func (m *measure) Delete(key datastore.Key) error {
 	defer recordLatency(m.deleteLatency, time.Now())
-	m.deleteNum.Add()
+	m.deleteCount.Inc(1)
 	err := m.backend.Delete(key)
 	if err != nil {
-		m.deleteErr.Add()
+		m.deleteErr.Inc(1)
 	}
 	return err
 }
 
 func (m *measure) Query(q query.Query) (query.Results, error) {
 	defer recordLatency(m.queryLatency, time.Now())
-	m.queryNum.Add()
+	m.queryCount.Inc(1)
 	res, err := m.backend.Query(q)
 	if err != nil {
-		m.queryErr.Add()
+		m.queryErr.Inc(1)
 	}
 	return res, err
 }
@@ -180,7 +203,7 @@ func (mt *measuredBatch) Put(key datastore.Key, val interface{}) error {
 	mt.puts++
 	valb, ok := val.([]byte)
 	if ok {
-		_ = mt.m.putSize.RecordValue(int64(len(valb)))
+		mt.m.putSize.Update(int64(len(valb)))
 	}
 	return mt.putts.Put(key, val)
 }
@@ -191,12 +214,12 @@ func (mt *measuredBatch) Delete(key datastore.Key) error {
 }
 
 func (mt *measuredBatch) Commit() error {
-	err := logBatchCommit(mt.delts, mt.deletes, mt.m.deleteNum, mt.m.deleteErr, mt.m.deleteLatency)
+	err := logBatchCommit(mt.delts, mt.deletes, mt.m.deleteCount, mt.m.deleteErr, mt.m.deleteLatency)
 	if err != nil {
 		return err
 	}
 
-	err = logBatchCommit(mt.putts, mt.puts, mt.m.putNum, mt.m.putErr, mt.m.putLatency)
+	err = logBatchCommit(mt.putts, mt.puts, mt.m.putCount, mt.m.putErr, mt.m.putLatency)
 	if err != nil {
 		return err
 	}
@@ -204,17 +227,17 @@ func (mt *measuredBatch) Commit() error {
 	return nil
 }
 
-func logBatchCommit(b datastore.Batch, n int, num, errs metrics.Counter, lat *metrics.Histogram) error {
+func logBatchCommit(b datastore.Batch, n int, num, errs metrics.Counter, lat namedHistogram) error {
 	if n > 0 {
 		before := time.Now()
 		err := b.Commit()
 		took := int(time.Now().Sub(before)/time.Microsecond) / n
-		num.AddN(uint64(n))
+		num.Inc(int64(n))
 		for i := 0; i < n; i++ {
-			_ = lat.RecordValue(int64(took))
+			lat.Update(int64(took))
 		}
 		if err != nil {
-			errs.Add()
+			errs.Inc(1)
 			return err
 		}
 	}
@@ -222,23 +245,23 @@ func logBatchCommit(b datastore.Batch, n int, num, errs metrics.Counter, lat *me
 }
 
 func (m *measure) Close() error {
-	m.putNum.Remove()
-	m.putErr.Remove()
-	m.putLatency.Remove()
-	m.putSize.Remove()
-	m.getNum.Remove()
-	m.getErr.Remove()
-	m.getLatency.Remove()
-	m.getSize.Remove()
-	m.hasNum.Remove()
-	m.hasErr.Remove()
-	m.hasLatency.Remove()
-	m.deleteNum.Remove()
-	m.deleteErr.Remove()
-	m.deleteLatency.Remove()
-	m.queryNum.Remove()
-	m.queryErr.Remove()
-	m.queryLatency.Remove()
+	metrics.Unregister(m.putCount.name)
+	metrics.Unregister(m.putErr.name)
+	metrics.Unregister(m.putLatency.name)
+	metrics.Unregister(m.putSize.name)
+	metrics.Unregister(m.getCount.name)
+	metrics.Unregister(m.getErr.name)
+	metrics.Unregister(m.getLatency.name)
+	metrics.Unregister(m.getSize.name)
+	metrics.Unregister(m.hasCount.name)
+	metrics.Unregister(m.hasErr.name)
+	metrics.Unregister(m.hasLatency.name)
+	metrics.Unregister(m.deleteCount.name)
+	metrics.Unregister(m.deleteErr.name)
+	metrics.Unregister(m.deleteLatency.name)
+	metrics.Unregister(m.queryCount.name)
+	metrics.Unregister(m.queryErr.name)
+	metrics.Unregister(m.queryLatency.name)
 
 	if c, ok := m.backend.(io.Closer); ok {
 		return c.Close()

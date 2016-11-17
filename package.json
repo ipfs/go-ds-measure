@@ -8,10 +8,10 @@
   },
   "gxDependencies": [
     {
-      "author": "codahale",
-      "hash": "QmV3NSS3A1kX5s28r7yLczhDsXzkgo65cqRgKFXYunWZmD",
-      "name": "metrics",
-      "version": "0.0.0"
+      "author": "ipfs",
+      "hash": "QmUcMbPEjA4CiD2KBD4s7hxiqr8TwncfvyfoPDLrgqjhyC",
+      "name": "go-metrics-interface",
+      "version": "0.1.2"
     },
     {
       "author": "jbenet",

@@ -18,6 +18,12 @@
       "hash": "QmRWDav6mzWseLWeYfVd5fvUKiVe9xNH29YfMF438fG364",
       "name": "go-datastore",
       "version": "1.2.0"
+    },
+    {
+      "author": "ipfs",
+      "hash": "QmRg1gKTHzc3CZXSKzem8aR4E3TubFhbgXwfVuWnSK5CC5",
+      "name": "go-metrics-interface",
+      "version": "0.1.2"
     }
   ],
   "gxVersion": "0.8.0",

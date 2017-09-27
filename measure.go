@@ -13,7 +13,7 @@ import (
 
 var (
 	// sort latencies in buckets with following upper bounds in seconds
-	datastoreLatencyBuckets = []float64{1e-4, 1e-3, 1e-2, 1e-1}
+	datastoreLatencyBuckets = []float64{1e-4, 1e-3, 1e-2, 1e-1, 1}
 
 	// sort sizes in buckets with following upper bounds in bytes
 	datastoreSizeBuckets = []float64{1 << 6, 1 << 12, 1 << 18, 1 << 24}

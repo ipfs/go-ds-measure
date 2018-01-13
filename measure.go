@@ -53,6 +53,21 @@ func New(prefix string, ds datastore.Datastore) *measure {
 		queryErr: metrics.New(prefix+".query.errors_total", "Number of errored Datastore.Query calls").Counter(),
 		queryLatency: metrics.New(prefix+".query.latency_seconds",
 			"Latency distribution of Datastore.Query calls").Histogram(datastoreLatencyBuckets),
+
+		checkNum: metrics.New(prefix+".check_total", "Total number of Datastore.Check calls").Counter(),
+		checkErr: metrics.New(prefix+".check.errors_total", "Number of errored Datastore.Check calls").Counter(),
+		checkLatency: metrics.New(prefix+".check.latency_seconds",
+			"Latency distribution of Datastore.Check calls").Histogram(datastoreLatencyBuckets),
+
+		scrubNum: metrics.New(prefix+".scrub_total", "Total number of Datastore.Scrub calls").Counter(),
+		scrubErr: metrics.New(prefix+".scrub.errors_total", "Number of errored Datastore.Scrub calls").Counter(),
+		scrubLatency: metrics.New(prefix+".scrub.latency_seconds",
+			"Latency distribution of Datastore.Scrub calls").Histogram(datastoreLatencyBuckets),
+
+		gcNum: metrics.New(prefix+".gc_total", "Total number of Datastore.CollectGarbage calls").Counter(),
+		gcErr: metrics.New(prefix+".gc.errors_total", "Number of errored Datastore.CollectGarbage calls").Counter(),
+		gcLatency: metrics.New(prefix+".gc.latency_seconds",
+			"Latency distribution of Datastore.CollectGarbage calls").Histogram(datastoreLatencyBuckets),
 	}
 	return m
 }
@@ -81,6 +96,18 @@ type measure struct {
 	queryNum     metrics.Counter
 	queryErr     metrics.Counter
 	queryLatency metrics.Histogram
+
+	checkNum     metrics.Counter
+	checkErr     metrics.Counter
+	checkLatency metrics.Histogram
+
+	scrubNum     metrics.Counter
+	scrubErr     metrics.Counter
+	scrubLatency metrics.Histogram
+
+	gcNum     metrics.Counter
+	gcErr     metrics.Counter
+	gcLatency metrics.Histogram
 }
 
 func recordLatency(h metrics.Histogram, start time.Time) {
@@ -143,6 +170,45 @@ func (m *measure) Query(q query.Query) (query.Results, error) {
 		m.queryErr.Inc()
 	}
 	return res, err
+}
+
+func (m *measure) Check() error {
+	defer recordLatency(m.checkLatency, time.Now())
+	m.checkNum.Inc()
+	if c, ok := m.backend.(datastore.CheckedDatastore); ok {
+		err := c.Check()
+		if err != nil {
+			m.checkErr.Inc()
+		}
+		return err
+	}
+	return nil
+}
+
+func (m *measure) Scrub() error {
+	defer recordLatency(m.scrubLatency, time.Now())
+	m.scrubNum.Inc()
+	if c, ok := m.backend.(datastore.ScrubbedDatastore); ok {
+		err := c.Scrub()
+		if err != nil {
+			m.scrubErr.Inc()
+		}
+		return err
+	}
+	return nil
+}
+
+func (m *measure) CollectGarbage() error {
+	defer recordLatency(m.gcLatency, time.Now())
+	m.gcNum.Inc()
+	if c, ok := m.backend.(datastore.GCDatastore); ok {
+		err := c.CollectGarbage()
+		if err != nil {
+			m.gcErr.Inc()
+		}
+		return err
+	}
+	return nil
 }
 
 type measuredBatch struct {

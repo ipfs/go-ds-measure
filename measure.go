@@ -139,10 +139,13 @@ func (m *measure) Get(key datastore.Key) (value []byte, err error) {
 	defer recordLatency(m.getLatency, time.Now())
 	m.getNum.Inc()
 	value, err = m.backend.Get(key)
-	if err != nil {
-		m.getErr.Inc()
-	} else {
+	switch err {
+	case nil:
 		m.getSize.Observe(float64(len(value)))
+	case datastore.ErrNotFound:
+		// Not really an error.
+	default:
+		m.getErr.Inc()
 	}
 	return value, err
 }

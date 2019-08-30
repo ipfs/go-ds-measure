@@ -170,10 +170,11 @@ func (m *measure) Has(key datastore.Key) (exists bool, err error) {
 
 func (m *measure) GetSize(key datastore.Key) (size int, err error) {
 	defer recordLatency(m.getsizeLatency, time.Now())
-	m.hasNum.Inc()
+	m.getsizeNum.Inc()
 	size, err = m.backend.GetSize(key)
 	switch err {
 	case nil, datastore.ErrNotFound:
+		// Not really an error.
 	default:
 		m.getsizeErr.Inc()
 	}

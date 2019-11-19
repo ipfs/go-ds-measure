@@ -173,6 +173,10 @@ func (m *measure) Put(key datastore.Key, value []byte) error {
 	return err
 }
 
+func (m *measure) Sync(prefix datastore.Key) error {
+	return nil
+}
+
 func (m *measure) Get(key datastore.Key) (value []byte, err error) {
 	defer recordLatency(m.getLatency, time.Now())
 	m.getNum.Inc()

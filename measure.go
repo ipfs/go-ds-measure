@@ -32,6 +32,11 @@ func New(prefix string, ds datastore.Datastore) *measure {
 		putSize: metrics.New(prefix+".put.size_bytes",
 			"Size distribution of stored byte slices").Histogram(datastoreSizeBuckets),
 
+		syncNum: metrics.New(prefix+".sync_total", "Total number of Datastore.Sync calls").Counter(),
+		syncErr: metrics.New(prefix+".sync.errors_total", "Number of errored Datastore.Sync calls").Counter(),
+		syncLatency: metrics.New(prefix+".sync.latency_seconds",
+			"Latency distribution of Datastore.Sync calls").Histogram(datastoreLatencyBuckets),
+
 		getNum: metrics.New(prefix+".get_total", "Total number of Datastore.Get calls").Counter(),
 		getErr: metrics.New(prefix+".get.errors_total", "Number of errored Datastore.Get calls").Counter(),
 		getLatency: metrics.New(prefix+".get.latency_seconds",
@@ -106,6 +111,10 @@ type measure struct {
 	putLatency metrics.Histogram
 	putSize    metrics.Histogram
 
+	syncNum     metrics.Counter
+	syncErr     metrics.Counter
+	syncLatency metrics.Histogram
+
 	getNum     metrics.Counter
 	getErr     metrics.Counter
 	getLatency metrics.Histogram
@@ -174,7 +183,13 @@ func (m *measure) Put(key datastore.Key, value []byte) error {
 }
 
 func (m *measure) Sync(prefix datastore.Key) error {
-	return nil
+	defer recordLatency(m.syncLatency, time.Now())
+	m.syncNum.Inc()
+	err := m.backend.Sync(prefix)
+	if err != nil {
+		m.syncErr.Inc()
+	}
+	return err
 }
 
 func (m *measure) Get(key datastore.Key) (value []byte, err error) {

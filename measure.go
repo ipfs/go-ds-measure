@@ -16,7 +16,27 @@ var (
 	datastoreLatencyBuckets = []float64{1e-4, 1e-3, 1e-2, 1e-1, 1}
 
 	// sort sizes in buckets with following upper bounds in bytes
-	datastoreSizeBuckets = []float64{1 << 6, 1 << 12, 1 << 18, 1 << 24}
+	datastoreSizeBuckets = []float64{
+		1 << 5, // 32 bytes
+		2 << 5, // 64 bytes
+		4 << 5, // 128 bytes
+		8 << 5, // 256 bytes
+
+		1 << 10,   // 1KiB
+		4 << 10,   // 4KiB
+		32 << 10,  // 32KiB
+		512 << 10, // 512KiB
+
+		1 << 20,   // 1MiB
+		4 << 20,   // 4MiB
+		32 << 20,  // 32MiB
+		512 << 20, // 512MiB
+
+		1 << 30,   // 1GiB
+		4 << 30,   // 4GiB
+		32 << 30,  // 32GiB
+		512 << 30, // 512GiB
+	}
 )
 
 // New wraps the datastore, providing metrics on the operations. The

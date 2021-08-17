@@ -5,4 +5,4 @@ require (
 	github.com/ipfs/go-metrics-interface v0.0.1
 )
 
-go 1.15
+go 1.16

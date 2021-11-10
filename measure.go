@@ -3,6 +3,7 @@
 package measure
 
 import (
+	"context"
 	"io"
 	"time"
 
@@ -171,31 +172,31 @@ func recordLatency(h metrics.Histogram, start time.Time) {
 	h.Observe(elapsed.Seconds())
 }
 
-func (m *measure) Put(key datastore.Key, value []byte) error {
+func (m *measure) Put(ctx context.Context, key datastore.Key, value []byte) error {
 	defer recordLatency(m.putLatency, time.Now())
 	m.putNum.Inc()
 	m.putSize.Observe(float64(len(value)))
-	err := m.backend.Put(key, value)
+	err := m.backend.Put(ctx, key, value)
 	if err != nil {
 		m.putErr.Inc()
 	}
 	return err
 }
 
-func (m *measure) Sync(prefix datastore.Key) error {
+func (m *measure) Sync(ctx context.Context, prefix datastore.Key) error {
 	defer recordLatency(m.syncLatency, time.Now())
 	m.syncNum.Inc()
-	err := m.backend.Sync(prefix)
+	err := m.backend.Sync(ctx, prefix)
 	if err != nil {
 		m.syncErr.Inc()
 	}
 	return err
 }
 
-func (m *measure) Get(key datastore.Key) (value []byte, err error) {
+func (m *measure) Get(ctx context.Context, key datastore.Key) (value []byte, err error) {
 	defer recordLatency(m.getLatency, time.Now())
 	m.getNum.Inc()
-	value, err = m.backend.Get(key)
+	value, err = m.backend.Get(ctx, key)
 	switch err {
 	case nil:
 		m.getSize.Observe(float64(len(value)))
@@ -207,20 +208,20 @@ func (m *measure) Get(key datastore.Key) (value []byte, err error) {
 	return value, err
 }
 
-func (m *measure) Has(key datastore.Key) (exists bool, err error) {
+func (m *measure) Has(ctx context.Context, key datastore.Key) (exists bool, err error) {
 	defer recordLatency(m.hasLatency, time.Now())
 	m.hasNum.Inc()
-	exists, err = m.backend.Has(key)
+	exists, err = m.backend.Has(ctx, key)
 	if err != nil {
 		m.hasErr.Inc()
 	}
 	return exists, err
 }
 
-func (m *measure) GetSize(key datastore.Key) (size int, err error) {
+func (m *measure) GetSize(ctx context.Context, key datastore.Key) (size int, err error) {
 	defer recordLatency(m.getsizeLatency, time.Now())
 	m.getsizeNum.Inc()
-	size, err = m.backend.GetSize(key)
+	size, err = m.backend.GetSize(ctx, key)
 	switch err {
 	case nil, datastore.ErrNotFound:
 		// Not really an error.
@@ -230,31 +231,31 @@ func (m *measure) GetSize(key datastore.Key) (size int, err error) {
 	return size, err
 }
 
-func (m *measure) Delete(key datastore.Key) error {
+func (m *measure) Delete(ctx context.Context, key datastore.Key) error {
 	defer recordLatency(m.deleteLatency, time.Now())
 	m.deleteNum.Inc()
-	err := m.backend.Delete(key)
+	err := m.backend.Delete(ctx, key)
 	if err != nil {
 		m.deleteErr.Inc()
 	}
 	return err
 }
 
-func (m *measure) Query(q query.Query) (query.Results, error) {
+func (m *measure) Query(ctx context.Context, q query.Query) (query.Results, error) {
 	defer recordLatency(m.queryLatency, time.Now())
 	m.queryNum.Inc()
-	res, err := m.backend.Query(q)
+	res, err := m.backend.Query(ctx, q)
 	if err != nil {
 		m.queryErr.Inc()
 	}
 	return res, err
 }
 
-func (m *measure) Check() error {
+func (m *measure) Check(ctx context.Context) error {
 	defer recordLatency(m.checkLatency, time.Now())
 	m.checkNum.Inc()
 	if c, ok := m.backend.(datastore.CheckedDatastore); ok {
-		err := c.Check()
+		err := c.Check(ctx)
 		if err != nil {
 			m.checkErr.Inc()
 		}
@@ -263,11 +264,11 @@ func (m *measure) Check() error {
 	return nil
 }
 
-func (m *measure) Scrub() error {
+func (m *measure) Scrub(ctx context.Context) error {
 	defer recordLatency(m.scrubLatency, time.Now())
 	m.scrubNum.Inc()
 	if c, ok := m.backend.(datastore.ScrubbedDatastore); ok {
-		err := c.Scrub()
+		err := c.Scrub(ctx)
 		if err != nil {
 			m.scrubErr.Inc()
 		}
@@ -276,11 +277,11 @@ func (m *measure) Scrub() error {
 	return nil
 }
 
-func (m *measure) CollectGarbage() error {
+func (m *measure) CollectGarbage(ctx context.Context) error {
 	defer recordLatency(m.gcLatency, time.Now())
 	m.gcNum.Inc()
 	if c, ok := m.backend.(datastore.GCDatastore); ok {
-		err := c.CollectGarbage()
+		err := c.CollectGarbage(ctx)
 		if err != nil {
 			m.gcErr.Inc()
 		}
@@ -289,10 +290,10 @@ func (m *measure) CollectGarbage() error {
 	return nil
 }
 
-func (m *measure) DiskUsage() (uint64, error) {
+func (m *measure) DiskUsage(ctx context.Context) (uint64, error) {
 	defer recordLatency(m.duLatency, time.Now())
 	m.duNum.Inc()
-	size, err := datastore.DiskUsage(m.backend)
+	size, err := datastore.DiskUsage(ctx, m.backend)
 	if err != nil {
 		m.duErr.Inc()
 	}
@@ -304,12 +305,12 @@ type measuredBatch struct {
 	m *measure
 }
 
-func (m *measure) Batch() (datastore.Batch, error) {
+func (m *measure) Batch(ctx context.Context) (datastore.Batch, error) {
 	bds, ok := m.backend.(datastore.Batching)
 	if !ok {
 		return nil, datastore.ErrBatchUnsupported
 	}
-	batch, err := bds.Batch()
+	batch, err := bds.Batch(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -320,31 +321,31 @@ func (m *measure) Batch() (datastore.Batch, error) {
 	}, nil
 }
 
-func (mt *measuredBatch) Put(key datastore.Key, val []byte) error {
+func (mt *measuredBatch) Put(ctx context.Context, key datastore.Key, val []byte) error {
 	defer recordLatency(mt.m.batchPutLatency, time.Now())
 	mt.m.batchPutNum.Inc()
 	mt.m.batchPutSize.Observe(float64(len(val)))
-	err := mt.b.Put(key, val)
+	err := mt.b.Put(ctx, key, val)
 	if err != nil {
 		mt.m.batchPutErr.Inc()
 	}
 	return err
 }
 
-func (mt *measuredBatch) Delete(key datastore.Key) error {
+func (mt *measuredBatch) Delete(ctx context.Context, key datastore.Key) error {
 	defer recordLatency(mt.m.batchDeleteLatency, time.Now())
 	mt.m.batchDeleteNum.Inc()
-	err := mt.b.Delete(key)
+	err := mt.b.Delete(ctx, key)
 	if err != nil {
 		mt.m.batchDeleteErr.Inc()
 	}
 	return err
 }
 
-func (mt *measuredBatch) Commit() error {
+func (mt *measuredBatch) Commit(ctx context.Context) error {
 	defer recordLatency(mt.m.batchCommitLatency, time.Now())
 	mt.m.batchCommitNum.Inc()
-	err := mt.b.Commit()
+	err := mt.b.Commit(ctx)
 	if err != nil {
 		mt.m.batchCommitErr.Inc()
 	}

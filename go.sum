@@ -1,7 +1,7 @@
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/ipfs/go-datastore v0.7.1-0.20250225204649-1676d105e588 h1:pbgZzzDE6/Q7E0vhdbfMpyCW24jOLXkq5HtrCBuruJQ=
-github.com/ipfs/go-datastore v0.7.1-0.20250225204649-1676d105e588/go.mod h1:BGN3N+sLTEWQUHMtOjmm2GKccMJnVFPgSLp6kshNqRk=
+github.com/ipfs/go-datastore v0.7.1-0.20250226000051-0dbca94435fd h1:FKcZjv1qAZGaBpKDP4Mryct1cH/v81ML+Snp+/zosNQ=
+github.com/ipfs/go-datastore v0.7.1-0.20250226000051-0dbca94435fd/go.mod h1:BGN3N+sLTEWQUHMtOjmm2GKccMJnVFPgSLp6kshNqRk=
 github.com/ipfs/go-metrics-interface v0.0.1 h1:j+cpbjYvu4R8zbleSs36gvB7jR+wsL2fGD6n0jO4kdg=
 github.com/ipfs/go-metrics-interface v0.0.1/go.mod h1:6s6euYU4zowdslK0GKHmqaIZ3j/b/tL7HTWtJ4VPgWY=
 github.com/kr/pretty v0.2.0 h1:s5hAObm+yFO5uHYt5dYjxi2rXrsnmRpJx4OYvIWUaQs=

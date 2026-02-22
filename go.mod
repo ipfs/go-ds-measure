@@ -4,7 +4,7 @@ go 1.25
 
 require (
 	github.com/ipfs/go-datastore v0.8.2
-	github.com/ipfs/go-metrics-interface v0.0.1
+	github.com/ipfs/go-metrics-interface v0.3.0
 )
 
 require (

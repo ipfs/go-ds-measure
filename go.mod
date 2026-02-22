@@ -3,7 +3,7 @@ module github.com/ipfs/go-ds-measure
 go 1.25
 
 require (
-	github.com/ipfs/go-datastore v0.8.2
+	github.com/ipfs/go-datastore v0.9.1
 	github.com/ipfs/go-metrics-interface v0.0.1
 )
 
